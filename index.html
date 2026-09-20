@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Expense Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        
+        /* Custom Scrollbar for better UI */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+
+        .ai-gradient-text {
+            background: linear-gradient(to right, #8b5cf6, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .ai-gradient-bg {
+            background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+        }
+
+        /* Loading Spinner Animation */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #fff;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Markdown Styles for AI Response */
+        .prose p { margin-bottom: 0.75em; }
+        .prose ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 0.75em; }
+        .prose ol { list-style-type: decimal; padding-left: 1.5em; margin-bottom: 0.75em; }
+        .prose strong { color: #4c1d95; font-weight: 600; }
+        .prose h3 { font-size: 1.1em; font-weight: 600; margin-top: 1em; margin-bottom: 0.5em; color: #1e40af; }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="antialiased min-h-screen flex justify-center">
+
+    <!-- Mobile App Container Mockup -->
+    <div class="w-full max-w-md bg-gray-50 min-h-screen relative shadow-2xl flex flex-col overflow-hidden">
+        
+        <!-- Header -->
+        <header class="bg-white px-6 pt-8 pb-4 sticky top-0 z-10 shadow-sm">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Smart Wallet</h1>
+                    <p class="text-sm text-gray-500">บันทึกรายรับ-รายจ่ายของคุณ</p>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-600">
+                    <i class="fa-solid fa-wallet text-xl"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto p-4 pb-24 space-y-6">
+            
+            <!-- Dashboard / Balance Card -->
+            <div class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white opacity-5 rounded-full blur-xl"></div>
+                <div class="absolute bottom-0 left-0 -mb-4 -ml-4 w-20 h-20 bg-white opacity-5 rounded-full blur-xl"></div>
+                
+                <p class="text-gray-300 text-sm font-medium mb-1">ยอดเงินคงเหลือ</p>
+                <h2 class="text-4xl font-bold mb-6" id="totalBalance">฿0.00</h2>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                            <i class="fa-solid fa-arrow-down text-emerald-400 text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400">รายรับรวม</p>
+                            <p class="font-semibold text-emerald-400" id="totalIncome">฿0.00</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center">
+                            <i class="fa-solid fa-arrow-up text-rose-400 text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400">รายจ่ายรวม</p>
+                            <p class="font-semibold text-rose-400" id="totalExpense">฿0.00</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Transaction Form -->
+            <div class="glass-card rounded-2xl p-5">
+                <h3 class="text-lg font-semibold mb-4 text-gray-800">เพิ่มรายการใหม่</h3>
+                <form id="transactionForm" class="space-y-4">
+                    
+                    <!-- Type Selector -->
+                    <div class="flex bg-gray-100 rounded-lg p-1">
+                        <button type="button" id="btnTypeExpense" class="flex-1 py-2 text-sm font-medium rounded-md bg-white shadow-sm text-rose-600 transition-all" onclick="setTransactionType('expense')">
+                            รายจ่าย
+                        </button>
+                        <button type="button" id="btnTypeIncome" class="flex-1 py-2 text-sm font-medium rounded-md text-gray-500 hover:text-gray-700 transition-all" onclick="setTransactionType('income')">
+                            รายรับ
+                        </button>
+                    </div>
+                    <input type="hidden" id="txType" value="expense">
+
+                    <!-- Category & Date -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">หมวดหมู่</label>
+                            <select id="txCategory" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 block p-2.5 outline-none transition-colors" required>
+                                <!-- Populated via JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">วันที่</label>
+                            <input type="date" id="txDate" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 block p-2.5 outline-none transition-colors" required>
+                        </div>
+                    </div>
+
+                    <!-- Amount & Note -->
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">จำนวนเงิน (บาท)</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <span class="text-gray-500 font-medium">฿</span>
+                            </div>
+                            <input type="number" id="txAmount" min="0.01" step="0.01" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-lg font-medium rounded-lg focus:ring-brand-500 focus:border-brand-500 block pl-8 p-2.5 outline-none transition-colors" placeholder="0.00" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">บันทึกเพิ่มเติม (ไม่บังคับ)</label>
+                        <input type="text" id="txNote" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 block p-2.5 outline-none transition-colors" placeholder="เช่น ค่าข้าวผัดกะเพรา">
+                    </div>
+
+                    <button type="submit" class="w-full text-white bg-gray-900 hover:bg-gray-800 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-3 text-center transition-colors">
+                        บันทึกรายการ
+                    </button>
+                </form>
+            </div>
+
+            <!-- AI Analysis Banner -->
+            <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-5">
+                <div class="flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-full ai-gradient-bg flex items-center justify-center text-white shrink-0 shadow-md">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-indigo-900 mb-1">วิเคราะห์ด้วย AI</h3>
+                        <p class="text-xs text-indigo-700/80 mb-3 leading-relaxed">
+                            ให้ AI ช่วยวิเคราะห์พฤติกรรมการใช้จ่ายของคุณ พร้อมแนะนำวิธีประหยัดและเพิ่มเงินเก็บ
+                        </p>
+                        <button id="btnAnalyze" onclick="analyzeData()" class="ai-gradient-bg text-white text-sm font-medium px-4 py-2 rounded-lg shadow-sm hover:opacity-90 transition-opacity flex items-center gap-2">
+                            <span>เริ่มการวิเคราะห์</span>
+                            <span id="aiLoading" class="hidden spinner"></span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- AI Result Container -->
+                <div id="aiResultContainer" class="hidden mt-4 pt-4 border-t border-indigo-200/60">
+                    <div class="bg-white rounded-xl p-4 shadow-sm border border-indigo-50">
+                        <h4 class="text-sm font-bold text-indigo-800 mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-robot"></i> คำแนะนำจากผู้ช่วย AI
+                        </h4>
+                        <div id="aiResultText" class="prose text-sm text-gray-700 leading-relaxed">
+                            <!-- Text injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transaction History -->
+            <div>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">ประวัติรายการ</h3>
+                    <button onclick="clearAllData()" class="text-xs text-red-500 hover:text-red-700 font-medium transition-colors">ล้างข้อมูลทั้งหมด</button>
+                </div>
+                <div id="transactionList" class="space-y-3">
+                    <!-- Transactions injected here -->
+                    <div class="text-center py-8 text-gray-400 text-sm" id="emptyState">
+                        <i class="fa-solid fa-receipt text-3xl mb-2 opacity-50"></i>
+                        <p>ยังไม่มีรายการบันทึก</p>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Modals/Alerts Container -->
+        <div id="alertBox" class="fixed top-4 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-full shadow-xl transition-all duration-300 transform -translate-y-24 opacity-0 z-50 flex items-center gap-3">
+            <i class="fa-solid fa-circle-check text-emerald-400"></i>
+            <span id="alertMessage" class="text-sm font-medium">บันทึกสำเร็จ</span>
+        </div>
+    </div>
+
+    <script>
+        // State Management
+        let transactions = [];
+        
+        // Categories Definition
+        const categories = {
+            expense: [
+                { id: 'food', name: 'อาหารและเครื่องดื่ม', icon: 'fa-utensils', color: 'bg-orange-100 text-orange-600' },
+                { id: 'transport', name: 'การเดินทาง', icon: 'fa-car', color: 'bg-blue-100 text-blue-600' },
+                { id: 'utilities', name: 'ค่าที่พัก/น้ำไฟ', icon: 'fa-house', color: 'bg-purple-100 text-purple-600' },
+                { id: 'shopping', name: 'ของใช้/ช้อปปิ้ง', icon: 'fa-bag-shopping', color: 'bg-pink-100 text-pink-600' },
+                { id: 'education', name: 'การศึกษา', icon: 'fa-book', color: 'bg-indigo-100 text-indigo-600' },
+                { id: 'entertainment', name: 'บันเทิง', icon: 'fa-gamepad', color: 'bg-yellow-100 text-yellow-600' },
+                { id: 'health', name: 'สุขภาพ/ยา', icon: 'fa-notes-medical', color: 'bg-red-100 text-red-600' },
+                { id: 'other_exp', name: 'รายจ่ายอื่นๆ', icon: 'fa-ellipsis-h', color: 'bg-gray-100 text-gray-600' }
+            ],
+            income: [
+                { id: 'salary', name: 'เงินเดือน', icon: 'fa-money-bill-wave', color: 'bg-emerald-100 text-emerald-600' },
+                { id: 'parttime', name: 'งานพิเศษ', icon: 'fa-briefcase', color: 'bg-teal-100 text-teal-600' },
+                { id: 'investment', name: 'ผลตอบแทนการลงทุน', icon: 'fa-chart-line', color: 'bg-cyan-100 text-cyan-600' },
+                { id: 'other_inc', name: 'รายรับอื่นๆ', icon: 'fa-plus', color: 'bg-gray-100 text-gray-600' }
+            ]
+        };
+
+        // DOM Elements
+        const txDateInput = document.getElementById('txDate');
+        const txCategorySelect = document.getElementById('txCategory');
+        const txTypeInput = document.getElementById('txType');
+        const btnTypeExpense = document.getElementById('btnTypeExpense');
+        const btnTypeIncome = document.getElementById('btnTypeIncome');
+        const transactionForm = document.getElementById('transactionForm');
+        
+        const elTotalBalance = document.getElementById('totalBalance');
+        const elTotalIncome = document.getElementById('totalIncome');
+        const elTotalExpense = document.getElementById('totalExpense');
+        const transactionList = document.getElementById('transactionList');
+        const emptyState = document.getElementById('emptyState');
+
+        // Format Currency
+        const formatMoney = (amount) => {
+            return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(amount);
+        };
+
+        // Format Date (DD MMM YYYY)
+        const formatDate = (dateString) => {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+        };
+
+        // Initialize Date to Today
+        const initDate = () => {
+            const today = new Date().toISOString().split('T')[0];
+            txDateInput.value = today;
+        };
+
+        // Show Alert Toast
+        const showAlert = (message, isError = false) => {
+            const alertBox = document.getElementById('alertBox');
+            const alertMessage = document.getElementById('alertMessage');
+            const icon = alertBox.querySelector('i');
+            
+            alertMessage.textContent = message;
+            
+            if (isError) {
+                icon.className = 'fa-solid fa-circle-exclamation text-rose-400';
+            } else {
+                icon.className = 'fa-solid fa-circle-check text-emerald-400';
+            }
+
+            alertBox.classList.remove('-translate-y-24', 'opacity-0');
+            alertBox.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                alertBox.classList.remove('translate-y-0', 'opacity-100');
+                alertBox.classList.add('-translate-y-24', 'opacity-0');
+            }, 3000);
+        };
+
+        // Set Transaction Type (UI Toggle)
+        const setTransactionType = (type) => {
+            txTypeInput.value = type;
+            
+            if (type === 'expense') {
+                // Style Active
+                btnTypeExpense.classList.add('bg-white', 'shadow-sm', 'text-rose-600');
+                btnTypeExpense.classList.remove('text-gray-500', 'hover:text-gray-700');
+                // Style Inactive
+                btnTypeIncome.classList.remove('bg-white', 'shadow-sm', 'text-emerald-600');
+                btnTypeIncome.classList.add('text-gray-500', 'hover:text-gray-700');
+            } else {
+                // Style Active
+                btnTypeIncome.classList.add('bg-white', 'shadow-sm', 'text-emerald-600');
+                btnTypeIncome.classList.remove('text-gray-500', 'hover:text-gray-700');
+                // Style Inactive
+                btnTypeExpense.classList.remove('bg-white', 'shadow-sm', 'text-rose-600');
+                btnTypeExpense.classList.add('text-gray-500', 'hover:text-gray-700');
+            }
+
+            updateCategoryOptions(type);
+        };
+
+        // Populate Category Dropdown
+        const updateCategoryOptions = (type) => {
+            txCategorySelect.innerHTML = '';
+            categories[type].forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = cat.name;
+                txCategorySelect.appendChild(option);
+            });
+        };
+
+        // Get Category Details Helper
+        const getCategoryDetails = (type, id) => {
+            return categories[type].find(c => c.id === id) || { name: 'อื่นๆ', icon: 'fa-tag', color: 'bg-gray-100 text-gray-600' };
+        };
+
+        // Update Dashboard Numbers
+        const updateDashboard = () => {
+            let inc = 0;
+            let exp = 0;
+
+            transactions.forEach(tx => {
+                if (tx.type === 'income') inc += tx.amount;
+                if (tx.type === 'expense') exp += tx.amount;
+            });
+
+            const bal = inc - exp;
+
+            elTotalIncome.textContent = formatMoney(inc);
+            elTotalExpense.textContent = formatMoney(exp);
+            elTotalBalance.textContent = formatMoney(bal);
+        };
+
+        // Render Transaction List
+        const renderTransactions = () => {
+            // Sort by date descending, then by timestamp
+            const sortedTx = [...transactions].sort((a, b) => {
+                if (a.date !== b.date) {
+                    return new Date(b.date) - new Date(a.date);
+                }
+                return b.timestamp - a.timestamp;
+            });
+
+            const existingItems = transactionList.querySelectorAll('.tx-item');
+            existingItems.forEach(item => item.remove());
+
+            if (sortedTx.length === 0) {
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+
+            sortedTx.forEach(tx => {
+                const catInfo = getCategoryDetails(tx.type, tx.category);
+                const isInc = tx.type === 'income';
+                
+                const div = document.createElement('div');
+                div.className = 'tx-item glass-card p-3 rounded-xl flex items-center justify-between transition-transform transform hover:scale-[1.01]';
+                
+                div.innerHTML = `
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${catInfo.color}">
+                            <i class="fa-solid ${catInfo.icon}"></i>
+                        </div>
+                        <div class="truncate pr-2">
+                            <p class="text-sm font-semibold text-gray-800 truncate">${catInfo.name}</p>
+                            <p class="text-xs text-gray-500 truncate">${tx.note || formatDate(tx.date)}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 shrink-0">
+                        <div class="text-right">
+                            <p class="text-sm font-bold ${isInc ? 'text-emerald-500' : 'text-gray-800'}">
+                                ${isInc ? '+' : '-'}${formatMoney(tx.amount)}
+                            </p>
+                            <p class="text-[10px] text-gray-400">${formatDate(tx.date)}</p>
+                        </div>
+                        <button onclick="deleteTransaction(${tx.timestamp})" class="w-8 h-8 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors">
+                            <i class="fa-solid fa-trash-can text-sm"></i>
+                        </button>
+                    </div>
+                `;
+                transactionList.appendChild(div);
+            });
+        };
+
+        // Form Submit Handler
+        transactionForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const type = txTypeInput.value;
+            const category = txCategorySelect.value;
+            const date = txDateInput.value;
+            const amount = parseFloat(document.getElementById('txAmount').value);
+            const note = document.getElementById('txNote').value.trim();
+
+            if (!amount || amount <= 0) {
+                showAlert('กรุณาระบุจำนวนเงินให้ถูกต้อง', true);
+                return;
+            }
+
+            const newTx = {
+                id: crypto.randomUUID(),
+                timestamp: Date.now(),
+                type,
+                category,
+                date,
+                amount,
+                note
+            };
+
+            transactions.push(newTx);
+            
+            // Reset Form fields (keep date and type)
+            document.getElementById('txAmount').value = '';
+            document.getElementById('txNote').value = '';
+            
+            updateDashboard();
+            renderTransactions();
+            showAlert('บันทึกรายการสำเร็จ');
+            
+            // Auto hide AI result if new data is added, as it might be outdated
+            document.getElementById('aiResultContainer').classList.add('hidden');
+        });
+
+        // Delete Transaction
+        window.deleteTransaction = (timestamp) => {
+            // Using custom modal logic instead of confirm()
+            // For simplicity in this demo environment, directly delete
+            transactions = transactions.filter(tx => tx.timestamp !== timestamp);
+            updateDashboard();
+            renderTransactions();
+            showAlert('ลบรายการสำเร็จ');
+        };
+
+        // Clear All
+        window.clearAllData = () => {
+            if(transactions.length === 0) return;
+            transactions = [];
+            updateDashboard();
+            renderTransactions();
+            document.getElementById('aiResultContainer').classList.add('hidden');
+            showAlert('ล้างข้อมูลทั้งหมดแล้ว');
+        };
+
+
+        // Construct Data Summary for AI
+        const summarizeDataForAI = () => {
+            let totalIncome = 0;
+            let totalExpense = 0;
+            const expenseByCategory = {};
+            const incomeByCategory = {};
+
+            transactions.forEach(tx => {
+                if (tx.type === 'income') {
+                    totalIncome += tx.amount;
+                    const catName = getCategoryDetails('income', tx.category).name;
+                    incomeByCategory[catName] = (incomeByCategory[catName] || 0) + tx.amount;
+                } else {
+                    totalExpense += tx.amount;
+                    const catName = getCategoryDetails('expense', tx.category).name;
+                    expenseByCategory[catName] = (expenseByCategory[catName] || 0) + tx.amount;
+                }
+            });
+
+            let summaryText = `สรุปข้อมูลรายรับ-รายจ่าย:\n`;
+            summaryText += `- รายรับรวม: ${totalIncome} บาท\n`;
+            summaryText += `- รายจ่ายรวม: ${totalExpense} บาท\n`;
+            summaryText += `- ยอดคงเหลือ: ${totalIncome - totalExpense} บาท\n\n`;
+            
+            if (Object.keys(expenseByCategory).length > 0) {
+                summaryText += `หมวดหมู่รายจ่าย:\n`;
+                for (const [cat, amt] of Object.entries(expenseByCategory)) {
+                    summaryText += `  - ${cat}: ${amt} บาท\n`;
+                }
+            }
+
+            return summaryText;
+        };
+
+        // Call Gemini API
+        window.analyzeData = async () => {
+            if (transactions.length === 0) {
+                showAlert('กรุณาบันทึกข้อมูลก่อนให้ AI วิเคราะห์', true);
+                return;
+            }
+
+            const btnAnalyze = document.getElementById('btnAnalyze');
+            const aiLoading = document.getElementById('aiLoading');
+            const aiResultContainer = document.getElementById('aiResultContainer');
+            const aiResultText = document.getElementById('aiResultText');
+
+            // UI Loading state
+            btnAnalyze.disabled = true;
+            btnAnalyze.classList.add('opacity-70', 'cursor-not-allowed');
+            aiLoading.classList.remove('hidden');
+            aiResultContainer.classList.add('hidden');
+
+            const dataSummary = summarizeDataForAI();
+            
+            const systemPrompt = `คุณคือผู้เชี่ยวชาญด้านการเงินส่วนบุคคล (Personal Finance Advisor) ที่เป็นมิตรและให้คำปรึกษาด้วยภาษาไทยที่เป็นกันเอง เข้าใจง่าย
+หน้าที่ของคุณคือ:
+1. วิเคราะห์ข้อมูลสรุปรายรับ-รายจ่ายที่ผู้ใช้ส่งให้
+2. ชี้ให้เห็นว่าผู้ใช้ใช้จ่ายกับอะไรมากที่สุด (ถ้ามีข้อมูลเพียงพอ)
+3. ให้คำแนะนำที่ปฏิบัติได้จริงว่าควรปรับลดค่าใช้จ่ายส่วนไหน
+4. แนะนำวิธีแบ่งเงินเก็บออมให้เกิดประโยชน์สูงสุด
+5. รูปแบบการตอบสนอง: สั้น กระชับ ใช้ Bullet points จัดหน้าให้อ่านง่าย (ใช้ Markdown Format)`;
+
+            const userPrompt = `รบกวนวิเคราะห์พฤติกรรมการใช้จ่ายและให้คำแนะนำในการออมเงินจากข้อมูลนี้ให้หน่อยครับ:\n\n${dataSummary}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userPrompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            const apiKey = ""; // API Key handled by Canvas environment
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error('API Response Error');
+                
+                const result = await response.json();
+                const aiResponseText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (aiResponseText) {
+                    // Render Markdown to HTML using marked.js
+                    aiResultText.innerHTML = marked.parse(aiResponseText);
+                    aiResultContainer.classList.remove('hidden');
+                } else {
+                    throw new Error('No content returned');
+                }
+
+            } catch (error) {
+                console.error("AI Analysis Error:", error);
+                showAlert('เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI กรุณาลองใหม่', true);
+            } finally {
+                // Restore UI state
+                btnAnalyze.disabled = false;
+                btnAnalyze.classList.remove('opacity-70', 'cursor-not-allowed');
+                aiLoading.classList.add('hidden');
+            }
+        };
+
+        // Initialization on Load
+        document.addEventListener('DOMContentLoaded', () => {
+            initDate();
+            setTransactionType('expense'); // Default to expense
+            updateDashboard();
+            renderTransactions();
+
+            // Insert some dummy data for preview (Optional, helps visualize empty state vs filled state)
+            /*
+            transactions = [
+                { id: '1', timestamp: Date.now()-86400000, type: 'income', category: 'salary', date: '2023-10-25', amount: 35000, note: 'เงินเดือน' },
+                { id: '2', timestamp: Date.now()-80000000, type: 'expense', category: 'utilities', date: '2023-10-26', amount: 5500, note: 'ค่าเช่าห้อง+น้ำไฟ' },
+                { id: '3', timestamp: Date.now()-10000000, type: 'expense', category: 'food', date: new Date().toISOString().split('T')[0], amount: 350, note: 'หมูกระทะ' }
+            ];
+            updateDashboard();
+            renderTransactions();
+            */
+        });
+
+    </script>
+</body>
+</html>
